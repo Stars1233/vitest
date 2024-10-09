@@ -8,6 +8,7 @@ import type { UserConfig, UserWorkspaceConfig, WorkspaceProjectConfiguration } f
 import type { WorkspaceProject } from '../workspace'
 import { initializeProject } from '../workspace'
 import { configFiles as defaultConfigFiles } from '../../constants'
+import { isDynamicPattern } from './fast-glob-pattern'
 
 export async function resolveWorkspace(
   vitest: Vitest,
@@ -158,7 +159,7 @@ async function resolveWorkspaceProjectConfigs(
       const stringOption = definition.replace('<rootDir>', vitest.config.root)
       // if the string doesn't contain a glob, we can resolve it directly
       // ['./vitest.config.js']
-      if (!stringOption.includes('*')) {
+      if (!isDynamicPattern(stringOption)) {
         const file = resolve(vitest.config.root, stringOption)
 
         if (!existsSync(file)) {
@@ -214,7 +215,13 @@ async function resolveWorkspaceProjectConfigs(
       onlyFiles: false,
       cwd: vitest.config.root,
       expandDirectories: false,
-      ignore: ['**/node_modules/**', '**/*.timestamp-*'],
+      ignore: [
+        '**/node_modules/**',
+        // temporary vite config file
+        '**/*.timestamp-*',
+        // macOS directory metadata
+        '**/.DS_Store',
+      ],
     }
 
     const workspacesFs = await glob(workspaceGlobMatches, globOptions)

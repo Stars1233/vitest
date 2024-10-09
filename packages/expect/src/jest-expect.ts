@@ -22,7 +22,7 @@ import {
   stringify,
 } from './jest-matcher-utils'
 import { JEST_MATCHERS_OBJECT } from './constants'
-import { recordAsyncExpect, wrapSoft } from './utils'
+import { recordAsyncExpect, wrapAssertion } from './utils'
 
 // polyfill globals because expect can be used in node environment
 declare class Node {
@@ -43,7 +43,7 @@ export const JestChaiExpect: ChaiPlugin = (chai, utils) => {
     fn: (this: Chai.AssertionStatic & Assertion, ...args: any[]) => any,
   ) {
     const addMethod = (n: keyof Assertion) => {
-      const softWrapper = wrapSoft(utils, fn)
+      const softWrapper = wrapAssertion(utils, n, fn)
       utils.addMethod(chai.Assertion.prototype, n, softWrapper)
       utils.addMethod(
         (globalThis as any)[JEST_MATCHERS_OBJECT].matchers,
@@ -195,6 +195,7 @@ export const JestChaiExpect: ChaiPlugin = (chai, utils) => {
     const { subset: actualSubset, stripped } = getObjectSubset(
       actual,
       expected,
+      customTesters,
     )
     if ((pass && isNot) || (!pass && !isNot)) {
       const msg = utils.getMessage(this, [
@@ -384,14 +385,13 @@ export const JestChaiExpect: ChaiPlugin = (chai, utils) => {
     return this.be.null
   })
   def('toBeDefined', function () {
-    const negate = utils.flag(this, 'negate')
-    utils.flag(this, 'negate', false)
-
-    if (negate) {
-      return this.be.undefined
-    }
-
-    return this.not.be.undefined
+    const obj = utils.flag(this, 'object')
+    this.assert(
+      typeof obj !== 'undefined',
+      'expected #{this} to be defined',
+      'expected #{this} to be undefined',
+      obj,
+    )
   })
   def(
     'toBeTypeOf',
